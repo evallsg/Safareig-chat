@@ -246,8 +246,14 @@ class View {
         let input = document.getElementById('input-msg');
         input.addEventListener('keyup', (event) => {
             if(event.key == 'Enter') {
-                this.sendMessage(event.target.value);
-            }
+                this.sendTextMessage(event.target.value);
+                event.target.value = '';
+                this.controller.sendMessage('typing', {state: false});
+            }            
+        })
+
+        input.addEventListener('keydown', (event) => {
+            this.controller.sendMessage('typing', {state: event.target.value != ''});
         })
         this.updateChat(data)
     }
@@ -257,11 +263,45 @@ class View {
         title.innerText = data.roomname;
     }
 
-    sendMessage(text) {
+    updateOnlineUsers(users) {
+        let container = document.getElementById('users-container');
+        container.innerHTML = '';
+        for(let i in users) {
+            let column = document.createElement('div');
+            column.className = 'column-container';
+            container.appendChild(column);
+            column.setAttribute('user-id', users.id);
+
+            let div = document.createElement('div');
+            div.className = 'message-info';
+            column.appendChild(div);
+
+            let divImg = document.createElement('div');
+            divImg.className = 'round-image small';
+            div.appendChild(divImg);
+
+            let img = document.createElement('img');
+            img.src = users[i].avatar || "imgs/default_avatar.png";
+            divImg.appendChild(img);
+
+            let p = document.createElement('p');
+            p.className = 'username';
+            p.innerText = users[i].username;
+            div.appendChild(p);
+
+            column.addEventListener('click', (event) => {
+                // Change open chat
+                let el = event.target;
+                console.log(el['user-id']);
+            })
+        }
+    }
+
+    sendTextMessage(text) {
         let currentDate = new Date(); 
         let time = (currentDate.getHours() < 10 ? '0' : '') + currentDate.getHours() + ":" + (currentDate.getMinutes() < 10 ? '0' : '') + currentDate.getMinutes();
 
-        this.controller.sendMessage(text, time);
+        this.controller.sendMessage('text', {text, time});
 
         let chatContainer = document.getElementById('chat-container');
 
@@ -273,7 +313,7 @@ class View {
         bubble.className = 'bubble right';
         div.appendChild(bubble);
 
-        let user = this.controller.getUserData();
+        let userData = this.controller.getUserData();
         
         var p = document.createElement('p');
         p.innerText = text;
@@ -292,8 +332,55 @@ class View {
         div.appendChild(avatarDiv);
 
         let img = document.createElement('img');
-        img.src = user.avatar;
+        img.src = userData.avatar;
         avatarDiv.appendChild(img);
+    }
+
+    messageReceived(userId, message, userData) {
+
+        let chatContainer = document.getElementById('chat-container');
+
+        let div = document.createElement('div');
+        div.className = 'message';
+        chatContainer.appendChild(div);
+
+        let avatarDiv = document.createElement('div');
+        avatarDiv.className = 'message-user round-image small';
+        div.appendChild(avatarDiv);
+
+        let img = document.createElement('img');
+        img.src = userData.avatar;
+        avatarDiv.appendChild(img);
+
+        let bubble = document.createElement('div');
+        bubble.className = 'bubble left';
+        div.appendChild(bubble);
+        
+        var divInfo = document.createElement('div');
+        divInfo.className = 'message-info';
+        bubble.appendChild(divInfo);
+
+        var p = document.createElement('p');
+        p.className = 'username';
+        p.innerText = userData.username;
+        divInfo.appendChild(p);
+        
+        var p = document.createElement('p');
+        p.innerText = message.text;
+        bubble.appendChild(p);
+        
+        var divInfo = document.createElement('div');
+        divInfo.className = 'message-info time';
+        bubble.appendChild(divInfo);
+
+        var p = document.createElement('p');
+        p.innerText = message.time;
+        divInfo.appendChild(p);
+    }
+
+    updateTypingState(username, state) {
+        let p = document.getElementById('typing-state');
+        p.innerText = state ? username + ' is typing...' : ' ';
     }
 }
 

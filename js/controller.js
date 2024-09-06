@@ -12,6 +12,9 @@ class Controller {
         this.username = null;
         this.userId = null;
         this.avatar = null;
+        this.users = {};
+        this.currentChat = '';
+        this.room = '';
     }
 
     init(view) {
@@ -36,8 +39,10 @@ class Controller {
                 this.username = data.username;
                 this.userId = userId;
                 this.avatar = data.avatar;
-                this.server.getRoomInfo( data.roomname, (data) => console.log(data))
+                this.server.getRoomInfo( data.roomname, (data) => console.log(data));
+                this.currentChat = this.room = data.roomname;
                 onJoin(data);
+                this.sendMessage('profile');
             }
         }
 
@@ -46,21 +51,81 @@ class Controller {
                 onError(err);
             }
         }
+
+        this.server.on_user_connected = (userId) =>  this.sendMessage('profile', {users: [userId]});
+        this.server.on_user_disconnected = (userId) => this.removeOnlineUser(userId);
+
+        this.server.on_message = (userId, msg) => this.messageReceived(userId, msg);
     }
 
-    sendMessage(text, time) {
+    changeChat(name) {
+        this.currentChat = name;
+    }
+
+    sendMessage(type, data = {}) {
+        
         let message = {
-            type: 'msg',
-            text: text,
-            time: time,
-            user: this.userId
+            user: this.userId,
+            username: this.username,
+            type: type
+        }
+        switch(type) {
+            case 'text': case 'private':
+                message.text = data.text;
+                message.time = data.time;
+                break;
+            case 'typing':
+                message.state = data.state;
+                break;
+            case 'history':
+                break;
+            case 'profile':
+                message.username = this.username;
+                message.avatar = this.avatar;
+                break;
         }
 
-        this.server.sendMessage(message);
+        if(type == 'private' || type == 'profile' && data.users) {
+            this.server.sendMessage(message, data.users);
+        }
+        else {
+            this.server.sendMessage(message);
+        }
+    }
+
+    messageReceived( userId, message ) {
+        message = JSON.parse(message);
+        switch(message.type) {
+            case 'text': case 'private':
+                message.text = message.text;
+                message.time = message.time;
+                this.view.messageReceived(userId, message, this.users[userId]);
+                break;
+            case 'typing':
+                this.view.updateTypingState(this.users[userId].username, message.state);
+                break;
+            case 'history':
+                break;
+            case 'profile':
+                this.addOnlineUser(userId, message.username, message.avatar);
+                return;
+        }
     }
 
     getUserData() {
         return {username: this.username, avatar: this.avatar};
+    }
+
+    addOnlineUser(userId, username, avatar) {
+
+        this.users[userId] = {username, avatar};
+        this.view.updateOnlineUsers(this.users);
+    }
+
+    removeOnlineUser(userId) {
+        delete this.users[userId]    
+        this.view.updateOnlineUsers(this.users);
+        
     }
 }
 

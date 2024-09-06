@@ -434,7 +434,8 @@ input {
 .typing-state {
     font-size: small;
     padding: 2px 10px;
-    color: var(--text-color-secondary)
+    color: var(--text-color-secondary);
+    min-height: 24px;
 }
 
 .content-input {
