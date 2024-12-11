@@ -5,7 +5,7 @@ import View from "./view.js";
 
 class Controller {
     constructor() {
-        this.host = 'wss://webglstudio.org/port/55000/ws';
+        this.host = "localhost" + ":55000/"//'wss://localhost/55000/ws';
         this.view =  null;
         this.server = new SillyClient();
 
@@ -126,6 +126,65 @@ class Controller {
         delete this.users[userId]    
         this.view.updateOnlineUsers(this.users);
         
+    }
+
+    async getHits() {
+        const client_id = ""//MY_ID
+        const client_secret = ""// MY_KEY
+
+        const encoded = btoa(unescape(encodeURIComponent((client_id + ":" + client_secret))))
+
+        let headers = {
+            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+            "Authorization": "Basic " + encoded
+        }
+        const request = new Request("https://accounts.spotify.com/api/token", {
+            method: "POST",
+            headers,
+            body: "grant_type=client_credentials"
+        })
+        let response = await fetch(request);
+        if(response.ok) {
+            response.json().then(async data => {
+
+                console.log(data)
+                const access_token = data['access_token'];
+                localStorage.access_token = access_token;
+    
+                // Send the HTTP GET request to the Spotify API for the top tracks
+                // Set up the headers for the HTTP GET request
+                headers = {
+                    'Authorization': 'Bearer ' + access_token,
+                    'Content-Type': 'application/json',
+                }
+                response = await fetch('https://api.spotify.com/v1/playlists/3cEYpjA9oz9GiPac4AsH4n/tracks?limit=5&offset=0', {headers, method: 'GET'});
+                if(response.ok) {
+                    response.json().then(tracks => {
+                        const top_tracks = tracks['items']
+                        const hits = []
+                        for(let i = 0; i < top_tracks.length; i++) {
+                            const track = top_tracks[i];
+                            const rank = (i+1).toString() + '.'
+                            const name = track['track']['name']
+                            let artists = track['track']['artists'].map(x=>x.name);
+                            artists = artists.join(", ")
+                            const uri = track['track']['uri']
+                            hits.push({"rank":rank, "name":name, "artist":artists, "uri":uri})
+        
+                        }
+                        this.view.sendPlaylist(hits);
+                    })
+                }
+                else {
+                    console.log(response.status)
+                    response.text().then(text => console.log(text))
+                }
+            });
+        }
+        else {
+            console.log(response.status)
+            response.text().then(text => console.log(text))
+        }
     }
 }
 

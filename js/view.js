@@ -1,6 +1,11 @@
+import { EmojiButton } from '../node_modules/@joeattardi/emoji-button/dist/index.js';
 /**
 * @description Code in charge of representing the data of the model on screen. Communicates with both a model and a controller.
 */
+let IFrameAPI = null
+window.onSpotifyIframeApiReady = (iframe) => {
+    IFrameAPI = iframe;
+}
 
 class View {
     constructor(controller) {
@@ -10,6 +15,11 @@ class View {
         this.login = null;
         this.createLogin();
         this.createAvatarDialog();
+        this.picker = new EmojiButton();
+        this.picker.on("emoji", emoji => {
+            let input = document.getElementById('input-msg');
+            input.value +=emoji.emoji;
+        })
     }
 
     createLogin() {
@@ -255,7 +265,15 @@ class View {
         input.addEventListener('keydown', (event) => {
             this.controller.sendMessage('typing', {state: event.target.value != ''});
         })
+
+        const emojiBtn = document.getElementById('emoji-btn');
+        emojiBtn.addEventListener('click', (event) => {
+            this.picker.togglePicker(emojiBtn);            
+        })
         this.updateChat(data)
+    }
+
+    showEmojiDialog() {
     }
 
     updateChat(data) {
@@ -381,6 +399,72 @@ class View {
     updateTypingState(username, state) {
         let p = document.getElementById('typing-state');
         p.innerText = state ? username + ' is typing...' : ' ';
+    }
+
+    sendPlaylist(tracks) {
+
+        let chatContainer = document.getElementById('chat-container');
+        tracks = [tracks[0]]
+        if(tracks) {
+            for(let i = 0; i < tracks.length; i++) {
+                let currentDate = new Date(); 
+                let time = (currentDate.getHours() < 10 ? '0' : '') + currentDate.getHours() + ":" + (currentDate.getMinutes() < 10 ? '0' : '') + currentDate.getMinutes();
+
+                // this.controller.sendMessage('text', {text, time});
+
+                let chatContainer = document.getElementById('chat-container');
+
+                let div = document.createElement('div');
+                div.className = 'message me';
+                chatContainer.appendChild(div);
+
+                let bubble = document.createElement('div');
+                bubble.className = 'bubble right';
+                div.appendChild(bubble);
+
+                let userData = this.controller.getUserData();
+                           
+                var divInfo = document.createElement('div');
+                divInfo.className = 'message-info time';
+                bubble.appendChild(divInfo);
+
+                var p = document.createElement('p');
+                p.innerText = time;
+                divInfo.appendChild(p);
+
+                let avatarDiv = document.createElement('div');
+                avatarDiv.className = 'message-user round-image small';
+                div.appendChild(avatarDiv);
+
+                let img = document.createElement('img');
+                img.src = userData.avatar;
+                avatarDiv.appendChild(img);
+                
+                const track = tracks[i];
+                let div_spotify = document.createElement("div");
+                div_spotify.id = "embed-iframe";
+                let div_msg = document.createElement("div");
+                div_msg.className = "msg";
+                div_msg.style.minHeight = "80px";
+                div_msg.appendChild(div_spotify);
+                bubble.appendChild(div_msg);
+    
+                const options = {
+                    uri: track.uri,
+                    width:'inherit',
+                    height: 'auto'
+                  };
+                const callback = (EmbedController) => {
+                    // document.querySelectorAll('.episode').forEach(
+                    //     episode => {
+                    //         episode.addEventListener('click', () => {
+                    //             EmbedController.loadUri(episode.dataset.spotifyId)
+                    //         });
+                    //     })
+                };
+                IFrameAPI.createController(div_spotify, options, callback);
+            }
+        }
     }
 }
 
